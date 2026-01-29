@@ -81,51 +81,55 @@ document.querySelectorAll('.education-card, .cert-card').forEach(card => {
   observer.observe(card);
 });
 
-// Carousel functionality
-class Carousel {
-  private currentSlide = 0;
-  private slides: NodeListOf<Element>;
-  private indicators: NodeListOf<Element>;
-  private track: HTMLElement;
-  private totalSlides: number;
+// 3D Experience Card Stack
+class ExperienceCards {
+  private currentIndex = 0;
+  private cards: NodeListOf<Element>;
+  private timelinePoints: NodeListOf<Element>;
+  private timelineProgress: HTMLElement | null;
+  private counterCurrent: HTMLElement | null;
+  private totalCards: number;
   private touchStartX = 0;
   private touchEndX = 0;
+  private isAnimating = false;
 
   constructor() {
-    this.slides = document.querySelectorAll('.carousel-slide');
-    this.indicators = document.querySelectorAll('.indicator');
-    this.track = document.querySelector('.carousel-track') as HTMLElement;
-    this.totalSlides = this.slides.length;
+    this.cards = document.querySelectorAll('.exp-card');
+    this.timelinePoints = document.querySelectorAll('.timeline-point');
+    this.timelineProgress = document.querySelector('.timeline-progress');
+    this.counterCurrent = document.querySelector('.exp-counter-current');
+    this.totalCards = this.cards.length;
 
-    this.init();
+    if (this.totalCards > 0) {
+      this.init();
+    }
   }
 
   private init() {
-    // Next button
-    document.querySelector('.carousel-btn-next')?.addEventListener('click', () => {
-      this.nextSlide();
+    // Navigation buttons
+    document.querySelector('.exp-nav-next')?.addEventListener('click', () => {
+      this.next();
     });
 
-    // Previous button
-    document.querySelector('.carousel-btn-prev')?.addEventListener('click', () => {
-      this.prevSlide();
+    document.querySelector('.exp-nav-prev')?.addEventListener('click', () => {
+      this.prev();
     });
 
-    // Indicator clicks
-    this.indicators.forEach((indicator, index) => {
-      indicator.addEventListener('click', () => {
-        this.goToSlide(index);
+    // Timeline point clicks
+    this.timelinePoints.forEach((point, index) => {
+      point.addEventListener('click', () => {
+        this.goTo(index);
       });
     });
 
-    // Touch support for mobile
-    const carousel = document.querySelector('.carousel');
-    if (carousel) {
-      carousel.addEventListener('touchstart', (e: Event) => {
+    // Touch support
+    const wrapper = document.querySelector('.exp-cards-wrapper');
+    if (wrapper) {
+      wrapper.addEventListener('touchstart', (e: Event) => {
         this.touchStartX = (e as TouchEvent).changedTouches[0].screenX;
       });
 
-      carousel.addEventListener('touchend', (e: Event) => {
+      wrapper.addEventListener('touchend', (e: Event) => {
         this.touchEndX = (e as TouchEvent).changedTouches[0].screenX;
         this.handleSwipe();
       });
@@ -134,11 +138,14 @@ class Carousel {
     // Keyboard navigation
     document.addEventListener('keydown', (e: KeyboardEvent) => {
       if (e.key === 'ArrowLeft') {
-        this.prevSlide();
+        this.prev();
       } else if (e.key === 'ArrowRight') {
-        this.nextSlide();
+        this.next();
       }
     });
+
+    // Initial state
+    this.updateCards();
   }
 
   private handleSwipe() {
@@ -147,48 +154,83 @@ class Carousel {
 
     if (Math.abs(diff) > swipeThreshold) {
       if (diff > 0) {
-        this.nextSlide();
+        this.next();
       } else {
-        this.prevSlide();
+        this.prev();
       }
     }
   }
 
-  private updateSlide() {
-    // Update slides
-    this.slides.forEach((slide, index) => {
-      slide.classList.toggle('active', index === this.currentSlide);
+  private updateCards() {
+    // Update card positions
+    this.cards.forEach((card, index) => {
+      card.classList.remove('active', 'prev', 'next');
+
+      if (index === this.currentIndex) {
+        card.classList.add('active');
+      } else if (index === this.currentIndex - 1 || (this.currentIndex === 0 && index === this.totalCards - 1)) {
+        card.classList.add('prev');
+      } else if (index === this.currentIndex + 1 || (this.currentIndex === this.totalCards - 1 && index === 0)) {
+        card.classList.add('next');
+      }
     });
 
-    // Update indicators
-    this.indicators.forEach((indicator, index) => {
-      indicator.classList.toggle('active', index === this.currentSlide);
+    // Update timeline
+    this.timelinePoints.forEach((point, index) => {
+      point.classList.toggle('active', index === this.currentIndex);
     });
 
-    // Move track
-    this.track.style.transform = `translateX(-${this.currentSlide * 100}%)`;
+    // Update timeline progress
+    if (this.timelineProgress) {
+      const progress = (this.currentIndex / (this.totalCards - 1)) * 100;
+      this.timelineProgress.style.width = `${progress}%`;
+    }
+
+    // Update counter
+    if (this.counterCurrent) {
+      this.counterCurrent.textContent = String(this.currentIndex + 1).padStart(2, '0');
+    }
   }
 
-  private nextSlide() {
-    this.currentSlide = (this.currentSlide + 1) % this.totalSlides;
-    this.updateSlide();
+  private next() {
+    if (this.isAnimating) return;
+    this.isAnimating = true;
+
+    this.currentIndex = (this.currentIndex + 1) % this.totalCards;
+    this.updateCards();
+
+    setTimeout(() => {
+      this.isAnimating = false;
+    }, 700);
   }
 
-  private prevSlide() {
-    this.currentSlide = (this.currentSlide - 1 + this.totalSlides) % this.totalSlides;
-    this.updateSlide();
+  private prev() {
+    if (this.isAnimating) return;
+    this.isAnimating = true;
+
+    this.currentIndex = (this.currentIndex - 1 + this.totalCards) % this.totalCards;
+    this.updateCards();
+
+    setTimeout(() => {
+      this.isAnimating = false;
+    }, 700);
   }
 
-  private goToSlide(index: number) {
-    this.currentSlide = index;
-    this.updateSlide();
+  private goTo(index: number) {
+    if (this.isAnimating || index === this.currentIndex) return;
+    this.isAnimating = true;
+
+    this.currentIndex = index;
+    this.updateCards();
+
+    setTimeout(() => {
+      this.isAnimating = false;
+    }, 700);
   }
 }
 
-// Initialize carousel if it exists
-if (document.querySelector('.carousel')) {
-  new Carousel();
-}
+// Initialize experience cards
+new ExperienceCards();
 
 // Active navigation link on scroll
 const sections = document.querySelectorAll('section[id]');
@@ -212,5 +254,87 @@ window.addEventListener('scroll', () => {
     }
   });
 });
+
+// Draggable Scroll for Skills and Certifications on Mobile
+class DraggableScroll {
+  private containers: NodeListOf<Element>;
+  private isDown = false;
+  private startX = 0;
+  private scrollLeft = 0;
+  private activeEl: HTMLElement | null = null;
+
+  constructor() {
+    this.containers = document.querySelectorAll('.skills-grid, .certifications-grid');
+    this.init();
+  }
+
+  private init() {
+    this.containers.forEach(container => {
+      const el = container as HTMLElement;
+
+      // Mouse events
+      el.addEventListener('mousedown', (e) => this.handleMouseDown(e, el));
+      el.addEventListener('mouseleave', () => this.handleMouseLeave());
+      el.addEventListener('mouseup', () => this.handleMouseUp());
+      el.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+
+      // Touch events for better mobile support
+      el.addEventListener('touchstart', (e) => this.handleTouchStart(e, el), { passive: true });
+      el.addEventListener('touchend', () => this.handleTouchEnd());
+      el.addEventListener('touchmove', (e) => this.handleTouchMove(e), { passive: true });
+    });
+  }
+
+  private handleMouseDown(e: MouseEvent, el: HTMLElement) {
+    this.isDown = true;
+    this.activeEl = el;
+    el.classList.add('dragging');
+    this.startX = e.pageX - el.offsetLeft;
+    this.scrollLeft = el.scrollLeft;
+  }
+
+  private handleMouseLeave() {
+    if (!this.isDown || !this.activeEl) return;
+    this.isDown = false;
+    this.activeEl.classList.remove('dragging');
+  }
+
+  private handleMouseUp() {
+    this.isDown = false;
+    if (this.activeEl) {
+      this.activeEl.classList.remove('dragging');
+    }
+  }
+
+  private handleMouseMove(e: MouseEvent) {
+    if (!this.isDown || !this.activeEl) return;
+    e.preventDefault();
+    const x = e.pageX - this.activeEl.offsetLeft;
+    const walk = (x - this.startX) * 1.5;
+    this.activeEl.scrollLeft = this.scrollLeft - walk;
+  }
+
+  private handleTouchStart(e: TouchEvent, el: HTMLElement) {
+    this.isDown = true;
+    this.activeEl = el;
+    this.startX = e.touches[0].pageX - el.offsetLeft;
+    this.scrollLeft = el.scrollLeft;
+  }
+
+  private handleTouchEnd() {
+    this.isDown = false;
+    this.activeEl = null;
+  }
+
+  private handleTouchMove(e: TouchEvent) {
+    if (!this.isDown || !this.activeEl) return;
+    const x = e.touches[0].pageX - this.activeEl.offsetLeft;
+    const walk = (x - this.startX) * 1.5;
+    this.activeEl.scrollLeft = this.scrollLeft - walk;
+  }
+}
+
+// Initialize draggable scroll
+new DraggableScroll();
 
 console.log('Portfolio loaded successfully!');
